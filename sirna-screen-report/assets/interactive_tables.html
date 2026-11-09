@@ -1,0 +1,298 @@
+<!--
+  ============================================================================
+  INTERACTIVE qPCR DECISION TABLES  (Fig Q8 replacement)
+  ============================================================================
+  Tables for the qPCR §5 "Fig Q8" decision section. Emit the pair matching the
+  screen's assay design: a SIMPLIFIED static summary + the full INTERACTIVE table.
+
+    SIMPLIFIED (static, "standard thresholds" — clean at-a-glance readout):
+    * #simple-10pt  — 10-pt "A · With calls" (siRNA/Role/KD50/KD80/KDmax/%pool/R²/Call).
+    * #simple-3pt   — 3-pt clean per-dose %KD (@20/@2/@0.2) + %pool@top + Cq SD, no Call.
+
+    INTERACTIVE (editable thresholds; cells recolor + Call/Advance recompute live):
+    * #levers-10pt  — 10-pt "Per-siRNA Summary + Levers" (plate-level validity gates
+                      FIRST, then per-siRNA potency / efficacy / quality-gates / outcome).
+    * #triage-3pt   — 3-pt "3-Point Triage → which siRNAs earn a 10-pt curve".
+
+  For a 10-pt screen emit #simple-10pt + #levers-10pt; for a 3-pt screen emit
+  #simple-3pt + #triage-3pt. Paste the chosen tables + the <script> at the bottom into
+  report §5 (as Fig Q8, in place of the old static ranked table).
+
+  HOW IT WORKS (so the report stays interactive after download):
+    * Threshold values live in <input> fields inside the italic "thresholds" row
+      (class="thr"). The user edits them in the browser.
+    * Each data cell that is scored carries data-metric + data-val attributes.
+    * recompute() reads the thresholds, re-applies pass/borderline/fail classes to
+      each scored cell, and rewrites the OUTCOME / ADVANCE cell via a pure scoring
+      function (score10pt / score3pt). It runs on load and on every input change.
+    * Pure functions score10pt()/score3pt() are unit-tested (see the __tests__ note);
+      keep them pure so the logic can be verified without a browser.
+
+  FILL PER SCREEN: replace the example rows (siR-A…, FAM13A pool) with real siRNAs.
+  Keep one <tr class="drow"> per siRNA with the data-* attributes populated.
+  ============================================================================
+-->
+<style>
+/* scoped styles; palette matches report_template.html */
+.dtbl-wrap{background:var(--pn,#111827);border:1px solid var(--bd,#1e293b);border-radius:8px;padding:14px 16px;margin:10px 0;overflow-x:auto}
+.dtbl-wrap h4{margin:0 0 8px;color:var(--acc2,#93c5fd);font-size:13.5px}
+.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+.dtbl th,.dtbl td{padding:5px 8px;border-bottom:1px solid var(--bd,#1e293b);text-align:left;white-space:nowrap}
+.dtbl th{color:var(--mut,#cbd5e1);font-size:10.5px;text-transform:uppercase;letter-spacing:.02em}
+.dtbl .grouphdr td{color:#8aa0b6;font-size:10px;text-transform:uppercase;border-bottom:none;padding-top:8px}
+.dtbl .thr td,.dtbl .thr input{font-style:italic;color:#9fb2c6;font-size:11px}
+.dtbl .thr input{width:72px;background:#0f172a;border:1px solid #29405c;border-radius:4px;color:#cfe3f5;padding:2px 5px;font-family:ui-monospace,Menlo,monospace}
+.dtbl .mono{font-family:ui-monospace,Menlo,monospace}
+.cell-pass{background:rgba(76,175,80,0.16);color:#c7f0d4}
+.cell-warn{background:rgba(255,152,0,0.16);color:#ffe0b2}
+.cell-fail{background:rgba(244,67,54,0.16);color:#ff9a9a}
+.out-adv{color:#4CAF50;font-weight:700}.out-hold{color:#FF9800;font-weight:700}.out-fail{color:#F44336;font-weight:700}.out-bench{color:#cbd5e1}
+.gate{display:inline-block;margin-right:18px;font-size:12px;color:#e2e8f0}
+.gate .lbl{color:#8aa0b6;font-size:10.5px;text-transform:uppercase;display:block}
+.gate.pass b{color:#4CAF50}.gate.fail b{color:#F44336}
+.dlegend{font-size:11px;color:#9fb2c6;margin-top:8px}
+.dlegend .sw{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:middle;margin:0 4px 0 12px}
+/* simplified summary tables */
+.dtbl-wrap .dsub{color:#e2e8f0;font-weight:700;font-size:12.5px;margin:12px 0 4px}
+.dtbl-wrap .thr-note{color:#8aa0b6;font-size:11px;margin:2px 0 6px}
+.dtbl .benchrow{background:#0d2440}
+.dtbl .benchrow td{border-bottom-color:#1b3a5c}
+.dtbl .posctrl{color:#93c5fd}
+.dtbl .nd{color:#6b7a8d}
+</style>
+
+<!-- ================= SIMPLIFIED SUMMARY TABLES (static, "standard thresholds") =================
+     Emit the one matching the assay design, ABOVE the full interactive table. These are the clean
+     at-a-glance readout; the interactive levers/triage table is the editable-threshold companion.
+     Populate one <tr> per siRNA; the benchmark row gets class="benchrow". For the 10-pt Call column,
+     fill with the standard-threshold result (same logic as score10pt) so simple + full agree. -->
+
+<!-- 10-pt DRC · simplified · "A · WITH CALLS — standard thresholds" -->
+<div class="dtbl-wrap" id="simple-10pt">
+  <h4>A · With calls — standard thresholds</h4>
+  <div class="thr-note">Gates: R² ≥ 0.98 · pts ≥ 8/10 · Cq SD ≤ 0.3 · plate gates PASS  |  Efficacy (% of pool): ≥ 80 Advance · 60–80 Hold · &lt; 60 Fail  |  Potency: KD50 ≤ 0.5 nM = top tier</div>
+  <div class="dsub">10-point DRC</div>
+  <table class="dtbl simple">
+    <thead><tr><th>siRNA</th><th>Role</th><th>KD50 (nM)</th><th>KD80 (nM)</th><th>KD max</th><th>% pool</th><th>R²</th><th>Call</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">siR-A</td><td>Test</td><td>0.08</td><td>0.6</td><td>92%</td><td>99%</td><td>0.997</td><td class="out-adv">Advance</td></tr>
+      <tr><td class="mono">siR-B</td><td>Test</td><td>0.05</td><td>0.4</td><td>70%</td><td>75%</td><td>0.994</td><td class="out-hold">Hold</td></tr>
+      <tr><td class="mono">siR-C</td><td>Test</td><td>4.2</td><td>&gt;20</td><td>55%</td><td>59%</td><td>0.981</td><td class="out-fail">Fail</td></tr>
+      <tr><td class="mono">siR-D</td><td>Test</td><td class="nd">n.d.</td><td class="nd">n.d.</td><td>~20%</td><td>21%</td><td>0.72</td><td class="out-fail">Fail (gate)</td></tr>
+      <tr class="benchrow"><td class="mono">FAM13A pool</td><td class="posctrl">Pos ctrl</td><td>0.06</td><td>0.5</td><td>93%</td><td>100%</td><td>0.998</td><td class="out-bench">benchmark</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 3-pt DRC · simplified · clean per-dose %KD (no Call column) -->
+<div class="dtbl-wrap" id="simple-3pt">
+  <div class="dsub">3-point DRC</div>
+  <table class="dtbl simple">
+    <thead><tr><th>siRNA</th><th>Role</th><th>%KD @20</th><th>%KD @2</th><th>%KD @0.2</th><th>% pool @top</th><th>Cq SD (max)</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">siR-A</td><td>Test</td><td>92%</td><td>87%</td><td>58%</td><td>99%</td><td>0.12</td></tr>
+      <tr><td class="mono">siR-B</td><td>Test</td><td>70%</td><td>69%</td><td>64%</td><td>75%</td><td>0.15</td></tr>
+      <tr><td class="mono">siR-C</td><td>Test</td><td>52%</td><td>30%</td><td>8%</td><td>56%</td><td>0.22</td></tr>
+      <tr><td class="mono">siR-D</td><td>Test</td><td>25%</td><td>18%</td><td>15%</td><td>27%</td><td>0.45</td></tr>
+      <tr class="benchrow"><td class="mono">FAM13A pool</td><td class="posctrl">Pos ctrl</td><td>93%</td><td>88%</td><td>60%</td><td>100%</td><td>0.10</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ================= 10-pt DRC: PER-siRNA SUMMARY + LEVERS ================= -->
+<div class="dtbl-wrap" id="levers-10pt">
+  <h4>Plate-level validity — gates checked FIRST. If any fail, no siRNA on the plate can be trusted.</h4>
+  <div>
+    <span class="gate pass"><span class="lbl">PPIB siRNA (delivery)</span>{{PPIB_KD}} · <b>{{PPIB_CALL}}</b></span>
+    <span class="gate pass"><span class="lbl">Non-targeting / mock</span>{{MOCK_KD}} · baseline = 100%</span>
+    <span class="gate pass"><span class="lbl">Z'-factor (window)</span>{{ZPRIME}} · <b>{{ZPRIME_CALL}}</b></span>
+    <span class="gate pass"><span class="lbl">NTC / No-RT</span>{{NTC}} · <b>PASS</b></span>
+    <span class="gate pass"><span class="lbl">GAPDH Cq across plate</span>SD {{GAPDH_SD}} · <b>{{GAPDH_CALL}}</b></span>
+  </div>
+  <div style="margin-top:12px;color:#8aa0b6;font-size:10px;text-transform:uppercase">Per-siRNA summary + levers — data, active thresholds (editable), per-cell scoring, and the driver of each Call</div>
+  <table class="dtbl">
+    <thead>
+      <tr class="grouphdr"><td colspan="2">Identity</td><td colspan="3">Potency · dials + guardrail</td><td colspan="2">Efficacy · primary dial</td><td>Guard</td><td colspan="3">Quality gates · auto-fail</td><td>Outcome</td></tr>
+      <tr><th>siRNA</th><th>Role</th><th>KD50</th><th>95% CI</th><th>KD80</th><th>KDmax</th><th>% pool</th><th>Hill</th><th>R²</th><th>pts</th><th>CqSD</th><th>Call · driver</th></tr>
+      <!-- editable thresholds: efficacy pass/warn bars, quality-gate cutoffs -->
+      <tr class="thr">
+        <td>set →</td><td></td>
+        <td>top ≤ <input id="t10_kd50top" value="0.5"> · adv ≤ <input id="t10_kd50" value="5"></td><td>CI ≤ <input id="t10_ci" value="5">×</td><td>info</td>
+        <td>info</td>
+        <td>pool ≥ <input id="t10_poolPass" value="80"> / warn ≥ <input id="t10_poolWarn" value="60"></td>
+        <td>Hill <input id="t10_hillLo" value="0.7">–<input id="t10_hillHi" value="1.5"></td>
+        <td>R² ≥ <input id="t10_r2" value="0.98"></td><td>pts ≥ <input id="t10_pts" value="8"></td><td>CqSD ≤ <input id="t10_cqsd" value="0.3"></td>
+        <td>= result</td>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- one .drow per siRNA. data-* drive scoring; text is what's displayed. role=test|pos -->
+      <tr class="drow" data-role="test" data-kd50="0.08" data-ci="2.6" data-kdmax="92" data-pool="99" data-hill="1.0" data-r2="0.997" data-pts="10" data-cqsd="0.12">
+        <td class="mono">siR-A</td><td>Test</td><td data-metric="kd50">0.08</td><td data-metric="ci">0.05–0.13</td><td>0.6</td><td>92%</td><td data-metric="pool">99%</td><td data-metric="hill">1.0</td><td data-metric="r2">0.997</td><td data-metric="pts">10</td><td data-metric="cqsd">0.12</td><td class="outcome"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-kd50="0.05" data-ci="3.0" data-kdmax="70" data-pool="75" data-hill="1.1" data-r2="0.994" data-pts="10" data-cqsd="0.15">
+        <td class="mono">siR-B</td><td>Test</td><td data-metric="kd50">0.05</td><td data-metric="ci">0.03–0.09</td><td>0.4</td><td>70%</td><td data-metric="pool">75%</td><td data-metric="hill">1.1</td><td data-metric="r2">0.994</td><td data-metric="pts">10</td><td data-metric="cqsd">0.15</td><td class="outcome"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-kd50="4.2" data-ci="4.3" data-kdmax="55" data-pool="59" data-hill="0.8" data-r2="0.981" data-pts="9" data-cqsd="0.22">
+        <td class="mono">siR-C</td><td>Test</td><td data-metric="kd50">4.2</td><td data-metric="ci">2.1–9.0</td><td>&gt;20 n.d.</td><td>55%</td><td data-metric="pool">59%</td><td data-metric="hill">0.8</td><td data-metric="r2">0.981</td><td data-metric="pts">9</td><td data-metric="cqsd">0.22</td><td class="outcome"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-kd50="" data-ci="" data-kdmax="20" data-pool="21" data-hill="" data-r2="0.72" data-pts="6" data-cqsd="0.45">
+        <td class="mono">siR-D</td><td>Test</td><td data-metric="kd50">n.d.</td><td data-metric="ci">—</td><td>n.d.</td><td>~20%</td><td data-metric="pool">21%</td><td data-metric="hill">—</td><td data-metric="r2">0.72</td><td data-metric="pts">6</td><td data-metric="cqsd">0.45</td><td class="outcome"></td>
+      </tr>
+      <tr class="drow" data-role="pos" data-kd50="0.06" data-ci="1.5" data-kdmax="93" data-pool="100" data-hill="1.0" data-r2="0.998" data-pts="10" data-cqsd="0.10">
+        <td class="mono">FAM13A pool</td><td>Pos ctrl</td><td data-metric="kd50">0.06</td><td data-metric="ci">0.04–0.09</td><td>0.5</td><td>93%</td><td data-metric="pool">100%</td><td data-metric="hill">1.0</td><td data-metric="r2">0.998</td><td data-metric="pts">10</td><td data-metric="cqsd">0.10</td><td class="outcome"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="dlegend"><span class="sw" style="background:rgba(76,175,80,0.5)"></span>passes threshold<span class="sw" style="background:rgba(255,152,0,0.5)"></span>borderline / capped<span class="sw" style="background:rgba(244,67,54,0.5)"></span>fails threshold · italic row = editable thresholds.</div>
+  <div class="dlegend"><b>Terminal cascade (each gate must pass to reach the next):</b> <b>0 Plate validity</b> (PPIB/pool/Z′/NTC/GAPDH) — any fail → <b>VOID · repeat plate</b>. <b>1 Quality gate</b> — R² ≥ {{r2}} · ≥ pts/10 · CqSD ≤ {{cqsd}} (a good 4PL fit is implicitly monotonic) — fail → <b>FAIL/repeat</b> (bad data / non-converged). <b>2 Fit trustworthy?</b> — Hill 0.7–1.5 · KD50 CI ≤ ~5× — no → <b>HOLD · repeat</b> (imprecise / odd shape, molecule may be fine). <b>3 Efficacy (primary flip)</b> — % pool: &lt; 60 → <b>FAIL inactive/weak</b>; 60–80 → <b>HOLD capped efficacy</b>; ≥ 80 → continue. <b>4 Potency tier</b> (KD50 already bracketed by the curve) — ≤ 0.5 nM → <b>ADVANCE · top priority</b>; ≤ 5 nM → <b>ADVANCE</b>; &gt; 5 nM → <b>HOLD · weak potency</b> (efficacious but needs high dose). <i>Terminal grades (Advance/Hold/Fail + priority) — contrast the 3-pt triage which hands winners to a further screen.</i></div>
+</div>
+
+<!-- ================= 3-pt DRC: TRIAGE ================= -->
+<div class="dtbl-wrap" id="triage-3pt">
+  <h4>3-point triage → which siRNAs earn a 10-pt curve for precise KD50. STRICT CASCADE: plate validity → ΔCt precision → monotonic → efficacy → potency resolution (each gate must pass to reach the next).</h4>
+  <table class="dtbl">
+    <thead>
+      <tr class="grouphdr"><td colspan="2">Identity</td><td colspan="3">Measured % KD per dose</td><td colspan="3">Decision inputs</td><td>Trust (ΔCt)</td><td>Call</td></tr>
+      <tr><th>siRNA</th><th>Role</th><th>@20 nM</th><th>@2 nM</th><th>@0.2 nM</th><th>% pool @top</th><th>mono?</th><th>KD50 status</th><th>ΔCt CqSD</th><th>→ call</th></tr>
+      <tr class="thr">
+        <td>set →</td><td></td><td></td><td></td><td></td>
+        <td>pool ≥ <input id="t3_pool" value="80"></td><td>mono = yes</td><td>unresolved &lt; <input id="t3_kd50lo" value="0.2"></td>
+        <td>CqSD ≤ <input id="t3_cqsd" value="0.3"></td><td>= result</td>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="drow" data-role="test" data-pool="99" data-mono="yes" data-kd50status="unresolved" data-cqsd="0.12">
+        <td class="mono">siR-A</td><td>Test</td><td>92%</td><td>87%</td><td>58%</td><td data-metric="pool">99%</td><td data-metric="mono">yes</td><td data-metric="kd50">&lt;0.2 · unresolved</td><td data-metric="cqsd">0.12</td><td class="advance"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-pool="75" data-mono="weak" data-kd50status="unresolved" data-cqsd="0.15">
+        <td class="mono">siR-B</td><td>Test</td><td>70%</td><td>69%</td><td>64%</td><td data-metric="pool">75%</td><td data-metric="mono">weak</td><td data-metric="kd50">&lt;0.2 · unresolved</td><td data-metric="cqsd">0.15</td><td class="advance"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-pool="56" data-mono="yes" data-kd50status="bracketed" data-cqsd="0.22">
+        <td class="mono">siR-C</td><td>Test</td><td>52%</td><td>30%</td><td>8%</td><td data-metric="pool">56%</td><td data-metric="mono">yes</td><td data-metric="kd50">~4 nM · bracketed</td><td data-metric="cqsd">0.22</td><td class="advance"></td>
+      </tr>
+      <tr class="drow" data-role="test" data-pool="27" data-mono="no" data-kd50status="nd" data-cqsd="0.45">
+        <td class="mono">siR-D</td><td>Test</td><td>25%</td><td>18%</td><td>15%</td><td data-metric="pool">27%</td><td data-metric="mono">no</td><td data-metric="kd50">n.d.</td><td data-metric="cqsd">0.45</td><td class="advance"></td>
+      </tr>
+      <tr class="drow" data-role="pos" data-pool="100" data-mono="yes" data-kd50status="benchmark" data-cqsd="0.10">
+        <td class="mono">FAM13A pool</td><td>Pos ctrl</td><td>93%</td><td>88%</td><td>60%</td><td data-metric="pool">100%</td><td data-metric="mono">yes</td><td data-metric="kd50">benchmark</td><td data-metric="cqsd">0.10</td><td class="advance"></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="dlegend">
+    <b>Strict cascade (each gate must pass to reach the next):</b><br>
+    <b>0 · Plate validity</b> (whole-plate, first) — PPIB delivery, FAM13A-pool positive, mock ~100%, Z′ separation, NTC/No-RT clean, GAPDH Cq stable. Any fail → <b>VOID · repeat plate</b> (no siRNA is called).<br>
+    <b>1 · ΔCt replicate precision</b> — judge %CV on the <b>ΔCt (cycle) scale, not linear %</b> (linear inflates near deep KD). Poor → <b>REPEAT · too noisy</b>.<br>
+    <b>2 · Monotonic?</b> — %KD rises/flat with dose. Rebound/zig-zag (high-dose tox confound) → <b>FAIL · confound</b> (investigate, don't bin potency).<br>
+    <b>3 · Efficacy gate (primary flip)</b> — % of pool @top ≥ bar (e.g. ≥80%). Below → <b>FAIL · inactive/weak</b> (a precise KD50 wouldn't matter).<br>
+    <b>4 · Potency resolution</b> — read potency coarsely from %KD @0.2 nM. <b>Bracketed</b> (transition inside 0.2–20 nM) → <b>HOLD/DROP</b> (coarse KD50 already known). <b>Extrapolated</b> (deep %KD even @0.2 nM → true KD50 below the lowest dose) → <b>ADVANCE to 10-pt</b>.<br>
+    <b>Advancers:</b> redesign the 10-pt range downward (top ~2 nM into low pM) so the sub-0.2 nM KD50 is <i>interpolated</i>, not extrapolated again. <i>Note: the 3-pt call is deliberately coarser and inverted on potency vs the 10-pt call — you push forward the molecules the screen proved potent but couldn't measure.</i>
+  </div>
+</div>
+
+<script>
+// ---- pure scoring functions (unit-tested; keep pure) --------------------------
+function num(v){ v = (v==null?'':String(v)).trim(); if(v===''||v==='—'||/n\.?d\.?/i.test(v)) return NaN; return parseFloat(v); }
+// 10-pt CONFIRMATION cascade (terminal call; graded outcomes). Same backbone as 3-pt but a richer
+// front end — a full 4PL fit makes fit-quality a gate, and monotonicity folds into fit quality.
+//   plate gate → quality gate (fit) → fit-trust guardrail → efficacy flip → potency tier.
+// Returns {cls,text}. data-plategate="fail" marks a siRNA on a voided plate.
+function score10pt(d, t){
+  if(d.role==='pos') return {cls:'out-bench', text:'benchmark (defines % pool)'};
+  if((d.plategate||'').toLowerCase()==='fail') return {cls:'out-fail', text:'VOID · repeat plate'};
+  var r2=num(d.r2), pts=num(d.pts), cqsd=num(d.cqsd), pool=num(d.pool), hill=num(d.hill), ci=num(d.ci), kd50=num(d.kd50);
+  // 1) hard quality gate — bad data / non-converged fit (a good 4PL fit is implicitly monotonic)
+  if((isNaN(r2)||r2<t.r2) || (isNaN(pts)||pts<t.pts) || (isNaN(cqsd)||cqsd>t.cqsd))
+    return {cls:'out-fail', text:'FAIL/repeat · bad data / non-converged fit'};
+  // 2) fit-trustworthy guardrail (soft) — odd shape / imprecise → HOLD-repeat, not a hard fail
+  var hillOk = !isNaN(hill) && hill>=t.hillLo && hill<=t.hillHi;
+  var ciOk = isNaN(ci) ? false : ci<=t.ci;   // KD50 CI fold ≤ ~5×
+  if(!hillOk || !ciOk) return {cls:'out-hold', text:'HOLD · repeat (imprecise / odd curve shape)'};
+  // 3) efficacy — the primary flip
+  if(isNaN(pool)||pool<t.poolWarn) return {cls:'out-fail', text:'FAIL · inactive/weak ('+d.pool+' < '+t.poolWarn+')'};
+  if(pool<t.poolPass) return {cls:'out-hold', text:'HOLD · capped efficacy ('+d.pool+', '+t.poolWarn+'–'+t.poolPass+')'};
+  // 4) potency TIER (KD50 is bracketed by the 10-pt curve — sets final priority, nothing to resolve)
+  if(isNaN(kd50)) return {cls:'out-hold', text:'HOLD · potency n.d.'};
+  if(kd50<=t.kd50top) return {cls:'out-adv', text:'ADVANCE · top priority (KD50 ≤ '+t.kd50top+' nM)'};
+  if(kd50<=t.kd50) return {cls:'out-adv', text:'ADVANCE (KD50 ≤ '+t.kd50+' nM)'};
+  return {cls:'out-hold', text:'HOLD · weak potency (KD50 > '+t.kd50+' nM, needs high dose)'};
+}
+// 3-pt triage — STRICT CASCADE (each gate must pass to reach the next; see STEP 5).
+//   plate gate → ΔCt precision → monotonic → efficacy → potency-resolution branch.
+// Returns {cls,text}. data-plategate="fail" marks a siRNA on a voided plate.
+function score3pt(d, t){
+  if(d.role==='pos') return {cls:'out-bench', text:'benchmark · defines ceiling'};
+  if((d.plategate||'').toLowerCase()==='fail') return {cls:'out-fail', text:'VOID · repeat plate'};
+  var pool=num(d.pool), cqsd=num(d.cqsd), mono=(d.mono||'').toLowerCase(), st=(d.kd50status||'').toLowerCase();
+  // 1) replicate precision — judged on the ΔCt (cycle) scale, NOT linear %
+  if(isNaN(cqsd) || cqsd>t.cqsd) return {cls:'out-fail', text:'REPEAT · too noisy (ΔCt)'};
+  // 2) reality check — monotonic dose response (rebound = high-dose toxicity confound)
+  if(mono==='no') return {cls:'out-fail', text:'FAIL · confound (non-monotonic)'};
+  // 3) efficacy gate — the primary flip; a precise KD50 is pointless below the bar
+  if(isNaN(pool) || pool<t.pool) return {cls:'out-fail', text:'FAIL · inactive/weak'};
+  // 4) potency resolution branch — bracketed vs extrapolated
+  if(st==='bracketed') return {cls:'out-hold', text:'HOLD/DROP · KD50 already bracketed'};
+  return {cls:'out-adv', text:'ADVANCE to 10-pt · unresolved potency'};  // extrapolated / deep @0.2
+}
+// per-cell class for the scored columns (10-pt)
+function cellClass10(metric, v, t){
+  var x=num(v);
+  if(metric==='pool'){ if(isNaN(x)) return 'cell-fail'; return x>=t.poolPass?'cell-pass':(x>=t.poolWarn?'cell-warn':'cell-fail'); }
+  if(metric==='kd50'){ if(isNaN(x)) return 'cell-fail'; var top=(t.kd50top||0.5); return x<=top?'cell-pass':(x<=t.kd50?'cell-warn':'cell-warn'); }
+  if(metric==='ci'){ var f=num((v||'').toString()); return ''; }
+  if(metric==='hill'){ if(isNaN(x)) return 'cell-fail'; return (x>=t.hillLo&&x<=t.hillHi)?'cell-pass':'cell-warn'; }
+  if(metric==='r2'){ if(isNaN(x)) return 'cell-fail'; return x>=t.r2?'cell-pass':'cell-fail'; }
+  if(metric==='pts'){ if(isNaN(x)) return 'cell-fail'; return x>=t.pts?'cell-pass':'cell-fail'; }
+  if(metric==='cqsd'){ if(isNaN(x)) return 'cell-fail'; return x<=t.cqsd?'cell-pass':'cell-fail'; }
+  return '';
+}
+function cellClass3(metric, v, t){
+  var x=num(v);
+  if(metric==='pool'){ if(isNaN(x)) return 'cell-fail'; return x>=t.pool?'cell-pass':'cell-warn'; }
+  if(metric==='cqsd'){ if(isNaN(x)) return 'cell-fail'; return x<=t.cqsd?'cell-pass':'cell-fail'; }
+  if(metric==='mono'){ return (v||'').toLowerCase()==='yes'?'cell-pass':((v||'').toLowerCase()==='weak'?'cell-warn':'cell-fail'); }
+  return '';
+}
+// ---- DOM wiring (no-op if these tables aren't present) ------------------------
+(function(){
+  if(typeof document==='undefined') return;
+  function val(id,dflt){ var e=document.getElementById(id); return e?parseFloat(e.value):dflt; }
+  function recompute(){
+    var lev=document.getElementById('levers-10pt');
+    if(lev){
+      var t={kd50top:val('t10_kd50top',0.5),kd50:val('t10_kd50',5),ci:val('t10_ci',5),poolPass:val('t10_poolPass',80),poolWarn:val('t10_poolWarn',60),
+             hillLo:val('t10_hillLo',0.7),hillHi:val('t10_hillHi',1.5),r2:val('t10_r2',0.98),pts:val('t10_pts',8),cqsd:val('t10_cqsd',0.3)};
+      lev.querySelectorAll('tr.drow').forEach(function(row){
+        var d=row.dataset;
+        row.querySelectorAll('td[data-metric]').forEach(function(td){
+          td.classList.remove('cell-pass','cell-warn','cell-fail');
+          var c=cellClass10(td.getAttribute('data-metric'), td.textContent, t);
+          if(c && d.role!=='pos') td.classList.add(c);
+        });
+        var o=score10pt(d,t), cell=row.querySelector('.outcome');
+        if(cell){ cell.textContent=o.text; cell.className='outcome '+o.cls; }
+      });
+    }
+    var tri=document.getElementById('triage-3pt');
+    if(tri){
+      var t3={pool:val('t3_pool',80),kd50lo:val('t3_kd50lo',0.2),cqsd:val('t3_cqsd',0.3)};
+      tri.querySelectorAll('tr.drow').forEach(function(row){
+        var d=row.dataset;
+        row.querySelectorAll('td[data-metric]').forEach(function(td){
+          td.classList.remove('cell-pass','cell-warn','cell-fail');
+          var c=cellClass3(td.getAttribute('data-metric'), td.textContent, t3);
+          if(c && d.role!=='pos') td.classList.add(c);
+        });
+        var o=score3pt(d,t3), cell=row.querySelector('.advance');
+        if(cell){ cell.textContent=o.text; cell.className='advance '+o.cls; }
+      });
+    }
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('#levers-10pt input, #triage-3pt input').forEach(function(i){ i.addEventListener('input',recompute); });
+    recompute();
+  });
+})();
+// export for node unit tests
+if(typeof module!=='undefined'){ module.exports={num,score10pt,score3pt,cellClass10,cellClass3}; }
+</script>

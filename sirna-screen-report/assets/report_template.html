@@ -1,0 +1,232 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  ============================================================================
+  siRNA Screen — MASTER QC & Knockdown Report TEMPLATE
+  ============================================================================
+  This is the CANONICAL layout + design system for reports produced by the
+  sirna-screen-report skill (see STEP 7). Copy this file, fill the {{TOKENS}},
+  base64-embed the STEP 6 figure PNGs into the <img src> slots, and delete any
+  section that does not apply to the chosen DATA_OP / findings.
+
+  Design rules (do NOT drift from these — they are the house style):
+    * Dark theme, palette in :root below. Never switch to a light background.
+    * Every plot gets a .cap (what it shows) AND a brief .guide "How to read"
+      interpretation note (required — one/two sentences on what to conclude).
+      Non-plots (param cards, download grids, pure tables) are exempt.
+    * Header .meta line carries Project (EINS-PRJ), Campaign (CACT-PRJ), cell
+      line (+Cins), target, instrument+reader, seed/transfect date, AUTHOR
+      INITIALS, and report datetime.
+    * A .toc (table of contents) mirrors the section list.
+    * Status colors: PASS #4CAF50, FLAG #FF9800, FAIL #F44336.
+    * Sections: 1 Exec summary · 2 Screen design · 3 Confluence QC · 4 Confluence
+      outlier · 5 qPCR knockdown · 6 qPCR outlier removal (+6.1 regenerated) ·
+      7 Repeat eval · 8 Calculations · 9 Provenance. (Per-plate findings/scorecard
+      is intentionally NOT included.) Conditional: confluence-only → §§1-4,7-9;
+      qPCR-only → §§1-2,5-9; MASTER (both) → all. Renumber TOC to match what you emit.
+  ============================================================================
+-->
+<title>{{SCREEN_NAME}} — Master QC & Knockdown Report</title><style>
+:root{--bg:#0b1120;--pn:#111827;--pn2:#0f172a;--bd:#1e293b;--tx:#e2e8f0;--mut:#cbd5e1;--acc:#5eead4;--acc2:#93c5fd;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.55;padding:30px 22px}
+.wrap{max-width:1060px;margin:0 auto}
+h1{font-size:23px;margin:0 0 4px;color:#fff}
+h2{font-size:18px;margin:34px 0 6px;color:var(--acc)}h2.sec{border-bottom:2px solid #1e3a5f;padding-bottom:7px}
+h3{margin:14px 0 6px;font-size:14px;color:var(--acc2)}
+.meta{color:var(--mut);font-size:13px;margin-bottom:18px}
+.toc{background:var(--pn2);border:1px solid var(--bd);border-radius:8px;padding:12px 18px;font-size:13px;color:#dde6f0;columns:2}
+.summary{background:var(--pn);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:8px;padding:15px 19px}.summary p{margin:7px 0}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}.kpi{background:var(--pn2);border:1px solid var(--bd);border-radius:8px;padding:10px 14px;flex:1;min-width:105px}.kpi .v{font-size:19px;font-weight:700;color:#fff}.kpi .l{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.03em}
+.fig{background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:12px;margin:10px 0}.cap{color:var(--mut);font-size:12.5px;margin:8px 2px 2px}
+.guide{background:#0d1b2a;border:1px solid #1e3a5f;border-left:3px solid #5eead4;border-radius:6px;padding:9px 13px;margin:8px 2px 2px;font-size:12.5px;color:#dbeef7}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px}th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--bd)}th{color:var(--mut);font-size:11px;text-transform:uppercase}.mono{font-family:ui-monospace,Menlo,monospace}
+.pass{color:#4CAF50;font-weight:700}.fail{color:#F44336;font-weight:700}.flag{color:#FF9800;font-weight:700}
+.note{background:#1c1917;border:1px solid #44403c;border-left:3px solid #fbbf24;border-radius:8px;padding:13px 17px;color:#fde68a;font-size:13px}
+.ok{background:#0f2417;border:1px solid #1f5133;border-left:3px solid #4CAF50;border-radius:8px;padding:13px 17px;color:#c7f0d4;font-size:13px}
+.decision{background:#0d1b2a;border:1px solid #1e3a5f;border-left:4px solid #5eead4;border-radius:8px;padding:15px 19px;font-size:13.5px}
+.pcard{background:var(--pn);border:1px solid var(--bd);border-radius:8px;padding:12px 15px;margin:10px 0}.pmeta{color:var(--mut);font-size:12px;margin-bottom:4px}.pverdict{font-size:12.5px;margin-top:7px;color:#e5edf3}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.failrow td{background:rgba(244,67,54,0.16);color:#ff9a9a}.failrow td:first-child{border-left:3px solid #F44336;font-weight:700}
+.unverified{background:rgba(244,67,54,0.16);color:#ff9a9a;font-weight:700;border-radius:4px;padding:0 5px}
+.foot{color:#a3b1c2;font-size:11.5px;margin-top:26px;border-top:1px solid var(--bd);padding-top:11px}
+code{background:#0f172a;border:1px solid var(--bd);border-radius:4px;padding:1px 5px;font-size:12px;color:#7dd3fc}
+</style></head><body><div class="wrap">
+
+<h1>{{SCREEN_NAME}} — {{CELL_LINE}} — {{DRC}} DRC — QC &amp; Knockdown Report — {{SEED_DATE}}</h1>
+<!-- Title format (exact): {{SCREEN_NAME}} — {{CELL_LINE}} — {{DRC}} DRC — QC & Knockdown Report — {{SEED_DATE}}
+     {{DRC}} = 3pt or 10pt (use the actual dose scheme; "arrayed" for single-dose). {{SEED_DATE}} = seed/transfect date, YYYY-MM-DD, at the end. -->
+
+<div class="meta">Project <b>{{EINS}} - {{PRJ}}</b> · Campaign <b>{{CACT}} - {{PRJ}}</b> · Cell line <b>{{CELL_LINE}} ({{CINS}})</b> · Target <b>{{TARGET}}</b> · Confluence instrument <b>{{INSTRUMENT}}</b> + reader {{READER}} · qPCR instrument <b>{{QPCR_INSTRUMENT}}</b> · Seed/transfect {{SEED_DATE}} · Author <b>{{INITIALS}}</b> · Report {{REPORT_DATETIME}}<br><i>{{SCOPE_LINE — e.g. "Combines the confluence QC (T1/T2, N plates) and the qPCR knockdown analysis (M plates). Supersedes the standalone reports."}}</i></div>
+<!-- QPCR_INSTRUMENT: from qpcr_run — instrument_type + serial + block, e.g. "QuantStudio 7 Pro (SN 2778721030054, 384-well block)". Omit the whole "qPCR instrument …" clause only if no qPCR readout ran. -->
+
+
+<div class="toc"><b>Contents</b><br>1. Executive summary<br>2. Screen design &amp; timeline<br>3. Confluence QC (T1/T2)<br>4. Confluence outlier — {{PLATE}}<br>5. qPCR knockdown ({{TARGET}})<br>6. qPCR outlier removal — before/after<br>7. Repeat evaluation<br>8. Calculations &amp; formulas<br>9. QC verification<br>10. Provenance</div>
+
+<!-- ===== §1 EXECUTIVE SUMMARY — MUST be readout-complete: one line per section emitted below.
+     Keep the confluence line only if §3 present; keep BOTH qPCR lines (knockdown + cleanup) if §5/§6
+     present; always keep the repeat verdict. Do not leave a qPCR line out when the body has qPCR. ===== -->
+<h2 class="sec" id="s1">1 · Executive summary</h2>
+<div class="summary">
+  <p><b>Confluence QC.</b> {{X/Y PASS, failures, one-line pattern}}</p>
+  <p><b>qPCR knockdown ({{TARGET}}).</b> {{how many siRNAs beat the benchmark, best KD50 / max KD, notable weak hit; housekeeping uniform so knockdown is genuine}}</p>
+  <p><b>qPCR QC cleanup (§6).</b> {{wells excluded (NO_AMP + low-input) and that hit ranking / benchmark KD50 held after cleanup}}</p>
+  <p><b>Repeat verdict (§8).</b> {{one-line go/no-go}}</p>
+</div>
+<!-- QC-verification badge (STEP 6.5): keep the .ok line on PASS, or swap to the .note list on FAIL. Report is approved only on PASS. -->
+<div class="ok"><b>QC verified.</b> All {{N}} calculations were independently recomputed from source and matched (see qc_verification.csv); no discrepancies.</div>
+<!-- <div class="note"><b>QC FAILED — not final.</b> {{list flagged discrepancies: quantity · reported vs recomputed · delta}}. Resolve before approving.</div> -->
+<div class="kpis">
+  <div class="kpi"><div class="v">{{N}}</div><div class="l">Confluence plates</div></div>
+  <div class="kpi"><div class="v">{{X/Y}}</div><div class="l">Confluence PASS</div></div>
+  <div class="kpi"><div class="v">{{M}}</div><div class="l">qPCR plates</div></div>
+  <div class="kpi"><div class="v">{{k/n}}</div><div class="l">Beat benchmark</div></div>
+  <div class="kpi"><div class="v">{{best}}</div><div class="l">Best KD50 (nM)</div></div>
+  <div class="kpi"><div class="v">{{pct}}</div><div class="l">Best max KD</div></div>
+</div>
+
+<!-- ===== §2 SCREEN DESIGN & TIMELINE: plate map, timeline, workflow processing order ===== -->
+<h2 class="sec" id="s2">2 · Screen design &amp; timeline</h2>
+<div class="fig"><img src="data:image/png;base64,{{FIG_PLATEMAP}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Representative 96-well layout: {{layout description}}.</div><div class="guide"><b>How to read:</b> Colors/positions encode the layout — controls, dose tiers, test-siRNA wells. Confirm control rows and dose columns match the intended design before trusting downstream QC.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_TIMELINE}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig 3 — Workflow summary: work orders in execution order (Order ID · step · instrument · start → end), pastel per step.</div><div class="guide"><b>How to read:</b> Top-to-bottom = the run's actual sequence and timing. Each box's instrument + start→end shows what ran when; large gaps or out-of-order steps flag scheduling issues that drive plate-to-plate variation.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_WORKFLOW_ORDER}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig 4 — Workorder Gantt (liquid handling): per-plate start-time timelines for OptiMEM addition · RNAiMAX addition · RNAiMAX+siRNA dispense · Cell seeding (Order · span · cadence per panel).</div><div class="guide"><b>How to read:</b> Plates run serially within each work order, so time-in-reagent / time-since-transfection varies across the set — QC context for plate-to-plate variation. Compare the stagger/cadence across the four steps.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_WORKORDER_GANTT_IMG}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig 4b — Workorder Gantt (imaging): per-plate scan-start timelines for T1 and T2 SparkCyto scans (note plates missing a T2 scan).</div><div class="guide"><b>How to read:</b> Same per-plate timeline style; shows the serial imaging stagger and each plate's actual T1/T2 read time — the basis for ordering the confluence/qPCR figures by biological time.</div></div>
+
+<!-- ===== §3 CONFLUENCE QC (T1/T2) ===== -->
+<h2 class="sec" id="s3">3 · Confluence QC (T1/T2)</h2>
+<div class="fig"><img src="data:image/png;base64,{{FIG_T1_HEATMAPS}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Day0 (T1) confluence heatmaps, all plates. Spine = QC status.</div><div class="guide"><b>How to read:</b> Each mini-plate is 8×12 wells, colored 0–100% confluence; a uniform deep color = healthy.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_T2_HEATMAPS}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Day2 (T2) confluence heatmaps. {{note plates without T2}}.</div><div class="guide"><b>How to read:</b> Same 8×12 grid at Day2. Uniform deep color = healthy; a localized pale region that deepened since T1 marks a spatial/seeding artifact, not biology.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_MEAN_CV}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Mean sample confluence and %CV, T1 vs T2.</div><div class="guide"><b>How to read:</b> Top: mean confluence (refs 70/50%). Bottom: %CV (thresholds 20/25%). At Day0 the informative metric is %CV, since mean confluence is near saturation.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_STATUS_CARDS}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Per-plate QC status cards (T2), with T1→T2 mean-confluence trend.</div><div class="guide"><b>How to read:</b> One card per plate; border/label color = PASS/FLAG/FAIL. Scan for any non-green plate, then read its mean/%CV to see why.</div></div>
+
+<!-- ===== §4 CONFLUENCE OUTLIER ROOT-CAUSE (one section per FAIL/FLAG plate) ===== -->
+<h2 class="sec" id="s4">4 · Confluence outlier — {{PLATE}} ({{STATUS}})</h2>
+<div class="note"><b>What/where:</b> {{location of deficit}}. <b>How determined:</b> {{which threshold breached}}. <b>Why {{mechanical vs biology}}:</b> {{dose-independent + hits controls ⇒ spatial/seeding/dispense artifact, not siRNA effect}}.</div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_ROOTCAUSE}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">{{PLATE}} root-cause: T1 &amp; T2 heatmaps + confluence-vs-dose. A U-shaped curve (high at both dose extremes, trough in the middle columns) is the signature of a spatial artifact.</div><div class="guide"><b>How to read:</b> Heatmaps show where the deficit sits; the confluence-vs-dose curve shows whether it tracks dose (biology) or plate column position (mechanical). A U-shape that also hits the controls = artifact.</div></div>
+<h3>Representative well images — {{PLATE}} ({{tp, cols}})</h3>
+<div class="fig"><div class="grid">
+  <!-- Repeat one <a> per well. Binary images CANNOT be base64-inlined; link to the hosted download.
+       Border-top + percent color by confluence (PASS #4CAF50 / FLAG #FF9800 / FAIL #F44336). -->
+  <a href="{{WELL_DOWNLOAD_URL}}" style="text-decoration:none"><div style="background:#0f172a;border:1px solid #1e293b;border-top:3px solid {{STATUS_COLOR}};border-radius:8px;padding:9px 6px;text-align:center"><div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#e2e8f0;font-weight:700">{{WELL}}</div><div style="font-size:16px;font-weight:700;color:{{STATUS_COLOR}}">{{PCT}}%</div><div style="font-size:10px;color:#cbd5e1">download</div></div></a>
+</div><div class="cap">Randomly-selected brightfield wells spanning the deficit; click to download (binary images can't be inlined). Compare low wells vs a within-plate reference to judge real cell loss vs imaging artifact.</div></div>
+
+<!-- ===== §5 qPCR KNOCKDOWN (Figs Q1-Q8 + dual-metric %CV). Figure numbering per STEP 6.
+     Q1 qPCR plate map / Q2 qPCR params are OPTIONAL in a master report (usually covered by §2) —
+     keep only if they add value. Use Q4-3pt OR Q4-10pt to match the assay design. ===== -->
+<h2 class="sec" id="s5">5 · qPCR knockdown ({{TARGET}} · {{PLATES}})</h2>
+<div class="note"><b>Method.</b> ΔCt = Cq(target,FAM) − Cq(housekeeping,VIC); ΔΔCt = ΔCt − plate untreated (col {{ctrl_col}}) mean; mRNA remaining % = 2^(−ΔΔCt)×100; knockdown % = (1 − 2^(−ΔΔCt))×100. KD50/KD80 = dose for 50%/80% knockdown from a 4-PL fit (top=100%); benchmark pooled across plates. Quadrant→plate mapping = canonical 96→384 interleave (odd/odd, odd/even, even/odd, even/even) confirmed against filename source order. Numbers are QC-cleaned (see §6 + the "Regenerated after QC cleanup" block).</div>
+<!-- OPTIONAL Q1/Q2 (drop if §2 already covers): -->
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q1}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q1 — qPCR plate map (color by compound/dose).</div><div class="guide"><b>How to read:</b> Where each compound/dose sits on the plate — use it to read the dose-response figures by well position.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q2}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q2 — qPCR assay parameters card.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q3}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q3 — housekeeping ({{HK}}) Cq per compound/well/plate, incl. each plate's controls (untreated · siPPIB · benchmark); red = excluded low-input wells; flat vs dose = equal input.</div><div class="guide"><b>How to read:</b> HK tight, equal across plates and controls, flat vs dose, below Cq 25 → knockdown reflects real target reduction, not input variation. (siPPIB here = input only; delivery proof is Fig Q3b.)</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_DELIVERY}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q3b — delivery control: PPIB knockdown % per plate (siPPIB; mean ± SEM), pass line ≥ 70% KD; PASS/FAIL colored.</div><div class="guide"><b>How to read:</b> This proves the siRNA got into the cells. Each plate's PPIB-KD bar should clear the pass line — a plate below it had a delivery/transfection failure and its knockdown results can't be trusted (see the Q8 delivery gate).</div></div>
+<!-- Q4a = cross-siRNA GOI %KD summary (both designs); Q4b = per-plate detail (3-pt bars OR 10-pt lines). -->
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q4A_GOI}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q4a — GOI % knockdown by tested siRNA at 3 doses (0.2 nM teal / 2 nM blue / 20 nM amber; bars mean ± SEM), RANKED on the 20 nM dose (most knockdown left); pooled controls (all plates) at right — SEMA3C pool (+) green-edged, mock (−) grey ~0% KD. knockdown % = (1−2^(−ΔΔCt))×100. Knockdown-axis mirror of Q5.</div><div class="guide"><b>How to read:</b> Taller = more knockdown; leftmost = most knocked down at 20 nM. The amber (20 nM) bar DIPPING BELOW the blue (2 nM) bar is the 20 nM-toxicity signature (mirror of Q5, where 20 nM mRNA-remaining sits above 2 nM) — real, not weaker silencing. Compare to the pooled (+)/(−) controls.</div></div>
+<!-- Q4b: use the variant matching the assay design (3-pt bars OR 10-pt lines). 3-pt screens: skip Q4b. -->
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q4}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q4b (3-pt DRC) — per-plate knockdown bars (mean ± SEM), harmonized dose colors 0.2 nM teal / 2 nM blue / 20 nM amber; siRNAs ordered by 0.2 nM efficacy (mirroring Q5); white replicate dots; incl. each plate's controls (siPPIB + benchmark); green dashed benchmark line.</div><div class="guide"><b>How to read:</b> Taller = more knockdown; compare each siRNA's doses to the on-plate controls and benchmark. The amber (20 nM) bar dipping BELOW the blue (2 nM) bar = 20 nM toxicity (the knockdown-axis mirror of Q5's 20 nM-remaining sitting above 2 nM) — a real signal, not weaker silencing.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q4_10PT}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q4b (10-pt DRC) — per-plate dose-response lines (% mRNA remaining vs dose, log; SEM error bars on every point), incl. each plate's controls (siPPIB + SMARTpool grey dashed); refs 100/50%.</div><div class="guide"><b>How to read:</b> Lower/further-left curve = more potent. 50% crossing = KD50; floor = max knockdown; error bars show replicate spread.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q5}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q5 — target mRNA remaining at all 3 doses (0.2 nM teal / 2 nM blue / 20 nM amber "tox"; bars mean ± SEM), RANKED on the non-toxic 0.2 nM dose (most potent left). Pooled controls (all plates) at right: SEMA3C pool (+) green-edged, mock (−) grey ≈100%. Dotted = pooled benchmark @0.2 nM; solid = 50%. mRNA remaining % = 2^(−ΔΔCt)×100. (PPIB delivery control is NOT shown here — see Fig Q3b.)</div><div class="guide"><b>How to read:</b> Ranked on the non-toxic 0.2 nM (teal) bar — leftmost = most potent. The 20 nM (amber) bar sitting ABOVE 2 nM (blue) is a 20 nM-toxicity signature (cross-ref Fig Q4a), not weaker silencing. Compare each siRNA to the pooled (+)/(−) controls and the benchmark line.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q6}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q6 — potency: ● KD50, ◆ KD80 per siRNA; far-left % = max KD; ← more potent.</div><div class="guide"><b>How to read:</b> Left = more potent. 'KD80 not reached' = potency ceiling below 80%.</div></div>
+<h3>Fig Q8 — Decision tables (simplified summary + interactive)</h3>
+<!-- Paste, from assets/interactive_tables.html, the two design-matched tables + the <script>:
+       10-pt DRC → #simple-10pt  then  #levers-10pt
+       3-pt  DRC → #simple-3pt   then  #triage-3pt
+     SIMPLIFIED first (static, standard-threshold readout), then the INTERACTIVE one
+     (fill <tr class="drow"> data-* attributes; the JS recolors cells + recomputes Call/Advance
+     when the user edits a threshold). -->
+{{SIMPLIFIED_DECISION_TABLE}}
+{{INTERACTIVE_DECISION_TABLE}}
+
+<h3 id="s5cv">5.1 · Replicate %CV per dose (two metrics)</h3>
+<div class="note">%CV = SD/mean ×100 of replicate wells at each dose. <b>Linear mRNA-remaining %CV is inflated at the extremes</b> (deep knockdown + sub-nM baseline), so show it beside the <b>ΔCt (log-domain) %CV</b>, which reflects true assay precision. Report the median of each.</div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_CV}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Replicate %CV per dose — A: mRNA-remaining (linear); B: ΔCt (log). Same wells; color capped at 50%.</div><div class="guide"><b>How to read:</b> The linear metric (A) balloons at the top dose and sub-nM baseline; the ΔCt metric (B) stays low everywhere — underlying precision is high.</div></div>
+<div class="two">
+  <!-- Left: %CV of mRNA-remaining (linear); Right: %CV of ΔCt (log). Cells >25% get red text + rgba(244,67,54,0.16) bg. -->
+  <div><div style="font-size:12px;color:#cbd5e1"><b>%CV of mRNA-remaining (linear)</b></div><table>{{CV_LINEAR_TABLE}}</table></div>
+  <div><div style="font-size:12px;color:#cbd5e1"><b>%CV of ΔCt (log)</b></div><table>{{CV_DCT_TABLE}}</table></div>
+</div>
+
+<!-- §5 close-out (REQUIRED): state the analysis performed + the explicit outlier conclusion.
+     Use .ok (green) when NO outliers were detected; use .note (amber) when outliers WERE found. -->
+<h3>Analysis &amp; outlier check</h3>
+<div class="note"><b>Analysis performed.</b> Per-well ΔCt = Cq(target,FAM) − Cq(housekeeping,VIC); per-plate ΔΔCt vs the untreated controls; mRNA-remaining % = 2^(−ΔΔCt)×100 and knockdown % = (1−2^(−ΔΔCt))×100; 4-PL potency (KD50/KD80/max KD) vs the pooled benchmark; housekeeping-input and replicate-%CV QC. <b>Outlier check:</b> wells flagged as NO_AMP or low-input (housekeeping Cq &gt; mean+2SD = {{thr}}).</div>
+<!-- Outlier CONCLUSION — pick ONE and delete the other: -->
+<div class="note"><b>Were any outliers detected? YES.</b> {{k}} well(s) flagged ({{n_noamp}} NO_AMP + {{n_lowinput}} low-input); see §6 for the removal, before/after, and the regenerated QC-cleaned figures/tables.</div>
+<div class="ok"><b>Were any outliers detected? NO.</b> No NO_AMP or low-input wells crossed the thresholds — no wells were excluded and §6 (outlier removal) is omitted; all §5 numbers use the full dataset.</div>
+
+<!-- ===== §6 qPCR OUTLIER REMOVAL — BEFORE/AFTER (include ONLY if outliers were detected) ===== -->
+<h2 class="sec" id="s6">6 · qPCR outlier removal — before / after</h2>
+<div class="note"><b>What/where:</b> {{gross artifact well + value}}. <b>How determined:</b> low-input if housekeeping (VIC) Cq &gt; mean+2SD = {{thr}}; plus NO_AMP blanks removed. <b>Why:</b> at low input ΔCt is unstable and normalized mRNA-remaining inflates. Removed {{k}}/{{N}} wells; hit ranking unchanged.</div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_OUTLIER_ID}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q10 — outlier identification. A: housekeeping Cq per well with the mean+2SD threshold (red = excluded). B: inflated mRNA-remaining tracks low input.</div><div class="guide"><b>How to read:</b> Wells above the red Cq threshold (A) have too little input; panel B shows their mRNA-remaining inflates — the reason they are excluded.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_BEFORE_AFTER}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Fig Q11 — dose-response before (all wells) vs after (QC-cleaned). Low-dose scatter tightens; curve shapes and ranking preserved.</div><div class="guide"><b>How to read:</b> Compare before vs after: the artifact spike disappears and low-dose scatter tightens while curve shape and ranking hold — cleanup fixed noise, not the biology.</div></div>
+<h3>What the cleanup changed</h3>
+<table><thead><tr><th>Metric</th><th>Before (v1)</th><th>After (v2)</th><th>Interpretation</th></tr></thead><tbody>
+  <tr><td>Wells used</td><td>{{n1}}</td><td>{{n2}} ({{k}} excl.)</td><td>no-amp + low-input removed</td></tr>
+  <tr><td>Max mRNA remaining</td><td>{{m1}}%</td><td>{{m2}}%</td><td>gross artifact gone</td></tr>
+  <tr><td>Benchmark fit RMSE</td><td>{{r1}}</td><td>{{r2}}</td><td>much better fit</td></tr>
+  <tr><td>Benchmark KD50</td><td>{{k1}} nM</td><td>{{k2}} nM</td><td><b>stable → ranking robust</b></td></tr>
+  <tr><td>Beat benchmark</td><td>{{b1}}</td><td>{{b2}}</td><td>Unchanged — not a cleanup effect</td></tr>
+</tbody></table>
+
+<!-- ===== §6.1 REGENERATED AFTER QC CLEANUP — re-emit EVERY plot whose values changed once the
+     flagged wells were dropped (Q4 dose-response, Q5 ranked, Q6 potency, Q7 %CV) AND a NEW Q8 decision
+     table (levers/triage) computed on the cleaned data. Keep the ORIGINALS above — do NOT overwrite them;
+     this section holds the regenerated versions the report's calls are based on. -->
+<h3 id="s6regen">6.1 · Regenerated after QC cleanup</h3>
+<div class="note">Every plot/table below was re-generated after removing the {{k}} flagged wells, so its numbers are QC-cleaned. The originals are kept above (not overwritten) so the effect of the cleanup is auditable.</div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q4_CLEAN}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Regenerated Q4 dose-response (QC-cleaned).</div><div class="guide"><b>How to read:</b> QC-cleaned dose-response — the version the report's hit calls are based on.</div></div>
+<div class="fig"><img src="data:image/png;base64,{{FIG_Q6_CLEAN}}" style="width:100%;height:auto;border-radius:8px;border:1px solid #1e293b"/><div class="cap">Regenerated Q6 potency (QC-cleaned).</div><div class="guide"><b>How to read:</b> QC-cleaned potency (KD50/KD80 after dropping flagged wells); compare to the pre-cleanup version above.</div></div>
+<h4 style="color:#93c5fd;margin:12px 0 4px">Regenerated Q8 decision tables (QC-cleaned)</h4>
+<!-- NEW copies of BOTH design-matched Q8 tables (simplified + interactive) computed on the cleaned
+     data. Do NOT replace the originals in §5 — keep both so the cleanup effect is auditable. -->
+{{SIMPLIFIED_DECISION_TABLE_CLEAN}}
+{{INTERACTIVE_DECISION_TABLE_CLEAN}}
+
+<!-- ===== §7 REPEAT EVALUATION (structured go/no-go) ===== -->
+<h2 class="sec" id="s7">7 · Does this batch need a repeat?</h2>
+<div class="decision"><b>Verdict: {{Yes/No}} — {{one-line rationale}}.</b></div>
+<p><b>(a) Assay validity.</b> {{housekeeping uniformity, dynamic range, positive-control behavior vs standard acceptance criteria}}</p>
+<p><b>(b) Conclusions robust to QC.</b> {{did removing flagged wells change KD50 / hit order?}}</p>
+<p><b>(c) Defects precision- vs validity-limiting.</b> {{where the noise sits on the curve}}</p>
+<p><b>(d) Per-plate.</b> {{which plates clean, which carry the worst input}}</p>
+<p><b>(e) Upstream confluence.</b> {{are the qPCR plates confluence-clean?}}</p>
+<p><b>When a repeat WOULD be justified:</b> {{decision-grade potency → narrow low-dose titration; single-plate re-run; confirm a weak hit; re-plate any confluence-FAIL plate outside the qPCR set}}.</p>
+
+<!-- ===== §9 CALCULATIONS & FORMULAS — EVERY computed quantity must appear here (and be restated in
+     its figure caption / method note). Delete rows for readouts not run; ADD a row for any quantity
+     you compute that is not already listed. ===== -->
+<h2 class="sec" id="s8">8 · Calculations &amp; formulas</h2>
+<div class="note"><b>Every computed quantity in this report, with its exact formula.</b> Each is also restated in the relevant figure caption / method note. Fill the {{…}} with the actual values used for this screen.</div>
+<table><thead><tr><th>Quantity</th><th>Formula</th><th>Notes / values used</th></tr></thead><tbody>
+<tr><td>Confluence %</td><td class="mono">TotalAreaInUm2 / well_area × 100</td><td>well_area = π·r²; 6.4 mm-bottom 96-well = {{well_area}} µm² (state the value used)</td></tr>
+<tr><td>Confluence %CV</td><td class="mono">SD / mean × 100</td><td>sample wells, per plate × timepoint</td></tr>
+<tr><td>ΔCt</td><td class="mono">Cq(target, FAM) − Cq(housekeeping, VIC)</td><td>per well; target {{TARGET}}, housekeeping {{HK}}</td></tr>
+<tr><td>ΔΔCt</td><td class="mono">ΔCt − mean ΔCt(plate untreated controls)</td><td>baseline is per-plate (col {{ctrl_col}})</td></tr>
+<tr><td>Fold change</td><td class="mono">2^(−ΔΔCt)</td><td></td></tr>
+<tr><td>mRNA remaining %</td><td class="mono">fold_change × 100 = 2^(−ΔΔCt) × 100</td><td></td></tr>
+<tr><td>Knockdown %</td><td class="mono">(1 − fold_change) × 100</td><td></td></tr>
+<tr><td>KD50 / KD80</td><td class="mono">dose at 50% / 80% knockdown from 4-PL fit (top fixed = 100%)</td><td>"not reached" if the fit floor never crosses 80%</td></tr>
+<tr><td>Max KD</td><td class="mono">100 − fit floor (%)</td><td></td></tr>
+<tr><td>Beats benchmark</td><td class="mono">siRNA KD50 &lt; benchmark KD50</td><td>benchmark = positive control pooled across plates</td></tr>
+<tr><td>4-PL fit RMSE</td><td class="mono">sqrt(mean(residual²))</td><td>reported before vs after cleanup (§6)</td></tr>
+<tr><td>Low-input exclusion</td><td class="mono">housekeeping (VIC) Cq &gt; mean + 2·SD</td><td>threshold = {{thr}}; NO_AMP wells also dropped</td></tr>
+<tr><td>%CV of ΔCt (log)</td><td class="mono">SD / mean × 100 of ΔCt</td><td>shown beside the linear %CV (§5.1)</td></tr>
+<tr><td>WF duration (run logs)</td><td class="mono">end_utc − start_utc</td><td>per plate × workflow (options 1/2)</td></tr>
+</tbody></table>
+<div class="guide"><b>Rule:</b> every number shown anywhere in this report must trace to a row here — if you compute a quantity not listed, add a row for it.</div>
+
+<!-- ===== §9 QC VERIFICATION (STEP 6.5) — verdict + ALL FAIL findings. From qc_verification.csv.
+     On PASS keep the .ok line and an empty findings table (or "none"). On FAIL (soft gate) keep the
+     .note line AND list every flagged discrepancy in the table below. ===== -->
+<h2 class="sec" id="s9">9 · QC verification</h2>
+<div class="ok"><b>QC verified — PASS.</b> All {{N}} computed quantities were independently recomputed from source and matched within tolerance (see qc_verification.csv). No discrepancies.</div>
+<!-- On FAIL, replace the .ok line above with: -->
+<!-- <div class="note"><b>QC verification — FAIL ({{k}} discrepancies).</b> Soft gate: the report is released with the affected numbers marked unverified; resolve and re-run STEP 6.5. Every flagged item is listed below.</div> -->
+<div style="font-size:12.5px;color:#cbd5e1;margin:6px 2px 2px"><b>FAIL findings</b> (empty on PASS):</div>
+<table><thead><tr><th>Quantity</th><th>Where (fig/table)</th><th>Reported</th><th>Recomputed</th><th>Δ</th><th>Status</th></tr></thead><tbody>
+  <tr class="failrow"><td class="mono">{{quantity}}</td><td>{{fig/table/well}}</td><td>{{reported}}</td><td>{{recomputed}}</td><td>{{delta}}</td><td class="fail">FAIL</td></tr>
+</tbody></table>
+<div class="guide">Each <b class="fail">FAIL</b> row is a value the QC agent could not reproduce (mismatch, miscalculation, or missing parameter) — the whole row is highlighted red for visibility. In the body, wrap these same values in <code>&lt;span class="unverified"&gt;…&lt;/span&gt;</code> so they are highlighted red wherever they appear (e.g. a KPI card or figure caption). If the table is empty, QC passed.</div>
+
+<!-- ===== §10 PROVENANCE FOOTER ===== -->
+<div class="foot" id="s10"><b>Provenance.</b> Confluence: SparkCyto XML (s3://insitro-microscopy-spark-cyto-archive/{{READER}}/…), TotalAreaInUm2/{{well_area}}×100; imaging order from lab_logs Cellario_Drivers.log via Athena. qPCR: QuantStudio Result CSV {{csv_name}} ({{QPCR_INSTRUMENT}}); exclusions NO_AMP + housekeeping Cq&gt;{{thr}}; quadrant→plate = canonical 96→384 interleave. Data files: {{qc_summary.csv, confluence_data.csv, qpcr_knockdown_clean.csv, qpcr_doseresponse_clean.csv, qpcr_potency_clean.csv}}. Generated by sirna-screen-report · Author {{INITIALS}} · {{REPORT_DATETIME}}.</div>
+</div></body></html>

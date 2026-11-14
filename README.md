@@ -1,4 +1,4 @@
-# sirna-screen-report
+# sirna-screen-report - NOT APPROVED FOR USE
 
 A Claude skill: end-to-end QC & knockdown report for siRNA screens (confluence + qPCR), with an
 independent QC-verification gate. The installable bundle is `sirna-screen-report.skill` (a zip of the
